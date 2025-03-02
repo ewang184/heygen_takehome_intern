@@ -1,5 +1,7 @@
 moviepy
 transformers
 speechrecognition
-whisper
-TTS
+sacremoses
+sentencepiece
+git+https://github.com/openai/whisper.git
+
