@@ -4,4 +4,13 @@ speechrecognition
 sacremoses
 sentencepiece
 git+https://github.com/openai/whisper.git
+numpy<2
+datasets
+soundfile
+torch
+torchaudio
+speechbrain
+tqdm
+
+
 
