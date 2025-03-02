@@ -1,0 +1,5 @@
+moviepy
+transformers
+speechrecognition
+whisper
+TTS
