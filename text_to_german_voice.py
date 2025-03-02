@@ -1,8 +1,8 @@
 from TTS.api import TTS
+from TTS.tts.configs.xtts_config import XttsConfig
+from TTS.tts.models.xtts import Xtts
+from TTS.api import TTS
 
-# Initialize the TTS engine with a pre-trained German model.
-# Change the model name if a different German model is available.
-tts = TTS(model_name="tts_models/de/thorsten/tacotron2-DDC", progress_bar=True, gpu=False)
 
 text = """
     Tansania, die Heimat einiger der atemberaubendsten Tierwelten der Erde. 
@@ -18,7 +18,31 @@ text = """
     Tansanias Wildtiere sind ein Schatz wie kein anderer, ein zartes Gleichgewicht der Natur, 
     das uns an die Schönheit und Kraft der Wildnis erinnert.
     """
-tts.tts_to_file(text=text, file_path="german_voice.wav")
+
+'''config = XttsConfig()
+config.load_json("/path/to/xtts/config.json")
+model = Xtts.init_from_config(config)
+model.load_checkpoint(config, checkpoint_dir="/path/to/xtts/", eval=True)
+model.cuda()
+
+outputs = model.synthesize(
+    text,
+    config,
+    speaker_wav="/data/TTS-public/_refclips/3.wav",
+    gpt_cond_len=3,
+    language="en",
+)
+
+print(outputs)'''
+
+tts = TTS("tts_models/multilingual/multi-dataset/xtts_v2", gpu=False)
+
+tts.tts_to_file(text="Tansania, die Heimat einiger der atemberaubendsten Tierwelten der Erde.",
+                file_path="german_voice.wav",
+                speaker_wav="output_audio.wav",
+                language="de")
+
+
 
 print("Audio saved as german_voice.wav")
 
