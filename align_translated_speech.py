@@ -66,8 +66,6 @@ align_words = set()
 for i, j in align_subwords:
   align_words.add( (sub2word_map_src[i], sub2word_map_tgt[j]) )
   
-print(align_words)
-# printing
 class color:
    PURPLE = '\033[95m'
    CYAN = '\033[96m'
