@@ -80,3 +80,24 @@ class color:
 
 for i, j in sorted(align_words):
   print(f'{color.BOLD}{color.BLUE}{sent_src[i]}{color.END}==={color.BOLD}{color.RED}{sent_tgt[j]}{color.END}')
+
+
+output_dict = {}
+previous_word = None
+
+for word1, word2 in sorted(align_words):
+    if sent_src[word1] != previous_word:
+        output_dict[sent_src[word1]] = sent_tgt[word2]
+    else:
+        # If the current word1 is the same as the previous word1, append the new word2 to the existing value
+        output_dict[sent_src[word1]] += sent_tgt[word2]
+    previous_word = sent_src[word1]
+merged_dict = {}
+for key, value in output_dict.items():
+    if value in merged_dict:
+        merged_dict[value].append(key)  # Append the key to the existing list
+    else:
+        merged_dict[value] = [key]
+# Step 2: Print the merged result
+for key, value in merged_dict.items():
+    print(f"{key} === {value}")

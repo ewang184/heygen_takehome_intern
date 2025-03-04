@@ -3,6 +3,7 @@ import torchaudio
 from dataclasses import dataclass
 import IPython
 import matplotlib.pyplot as plt
+from collections import defaultdict
 
 @dataclass
 class Point:
@@ -61,7 +62,7 @@ class Segment:
         return self.end - self.start
 
 
-def merge_repeats(path):
+def merge_repeats(path, transcript):
     i1, i2 = 0, 0
     segments = []
     while i1 < len(path):
@@ -82,7 +83,7 @@ def merge_repeats(path):
 def convert_to_format(input_string):
     # Remove commas and split the input string by spaces
     input_string = input_string.replace(",", "")
-    input_string = input_string.replace(".", "")
+    input_string = input_string.replace(".", " -'-'- ")
 
     german_to_english_map = {
         'ä': 'ae',
@@ -141,67 +142,79 @@ def merge_words(segments, separator="|"):
             i2 += 1
     return words
 
-def display_segment(i):
+def display_segment(i, waveform, bundle, word_segments, trellis):
     ratio = waveform.size(1) / trellis.size(0)
     word = word_segments[i]
     x0 = int(ratio * word.start)
     x1 = int(ratio * word.end)
-    print(f"{word.label} ({word.score:.2f}): {x0 / bundle.sample_rate:.3f} - {x1 / bundle.sample_rate:.3f} sec")
+    #print(f"{word.label} ({word.score:.2f}): {x0 / bundle.sample_rate:.3f} - {x1 / bundle.sample_rate:.3f} sec")
     #segment = waveform[:, x0:x1]
     #return IPython.display.Audio(segment.numpy(), rate=bundle.sample_rate)
+    return word.label, (x0 / bundle.sample_rate), (x0 / bundle.sample_rate)
 
-text = """
-    Tansania, die Heimat einiger der atemberaubendsten Tierwelten der Erde. Hier im Herzen Ostafrikas, beherbergt der große Serengeti-Nationalpark 
-    eines der größten Spektakel der Natur, die Große Migration. Über eine Million Wildebeest, 
-    Zebras und Gazellen reisen weite Strecken auf der Suche nach frischem Gras, 
-    glühende Flüsse voller Krokodile. Aber Raubtiere sind nie weit dahinter. Löwen, 
-    die Könige der Savanne, verfolgen ihre Beute mit Geduld und Präzision. Cheetahs, 
-    die schnellsten Landtiere, jagen ihre Ziele in einer spannenden Schau der Geschwindigkeit. 
-    Im üppigen Terengair-Nationalpark streifen riesige Elefanten frei umher. Diese intelligenten 
-    Kreaturen bilden starke Familienbande, die ihre Jungen vor Bedrohungen schützen. Und im alten 
-    Krater Ngorongoro findet der gefährdete schwarze Nashorn Zuflucht, ein seltener Anblick in der Wildnis. 
-    Tansanias Wildtiere sind ein Schatz wie kein anderer, ein zartes Gleichgewicht der Natur, 
-    das uns an die Schönheit und Kraft der Wildnis erinnert.
-    """
+def word_timings(text, wav_file):
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    print(device)
 
-device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-print(device)
+    torch.random.manual_seed(0)
 
-torch.random.manual_seed(0)
+    SPEECH_FILE = wav_file
 
-SPEECH_FILE = "german_voice.wav"
+    bundle = torchaudio.pipelines.WAV2VEC2_ASR_BASE_960H
+    model = bundle.get_model().to(device)
+    labels = bundle.get_labels()
+    with torch.inference_mode():
+        waveform, _ = torchaudio.load(SPEECH_FILE)
+        emissions, _ = model(waveform.to(device))
+        emissions = torch.log_softmax(emissions, dim=-1)
 
-bundle = torchaudio.pipelines.WAV2VEC2_ASR_BASE_960H
-model = bundle.get_model().to(device)
-labels = bundle.get_labels()
-with torch.inference_mode():
-    waveform, _ = torchaudio.load(SPEECH_FILE)
-    emissions, _ = model(waveform.to(device))
-    emissions = torch.log_softmax(emissions, dim=-1)
+    emission = emissions[0].cpu().detach()
 
-emission = emissions[0].cpu().detach()
+    transcript = convert_to_format(text)
+    dictionary = {c: i for i, c in enumerate(labels)}
 
-transcript = convert_to_format(text)
-dictionary = {c: i for i, c in enumerate(labels)}
+    tokens = [dictionary[c] for c in transcript]
 
-print(f"dict is {dictionary}")
+    trellis = get_trellis(emission, tokens)
 
-tokens = [dictionary[c] for c in transcript]
-print(list(zip(transcript, tokens)))
+    path = backtrack(trellis, emission, tokens)
+    for p in path:
+        segments = merge_repeats(path, transcript)
+    for seg in segments:
 
-trellis = get_trellis(emission, tokens)
+        word_segments = merge_words(segments)
+    for word in word_segments:
 
-path = backtrack(trellis, emission, tokens)
-for p in path:
-    print(p)
+        word_timings_list = []
+    for i,word in enumerate(word_segments):
+        word,start,end = display_segment(i, waveform, bundle, word_segments, trellis)
+        word_timings_list.append((word,start,end))
 
-segments = merge_repeats(path)
-for seg in segments:
-    print(seg)
+    word_count = defaultdict(int)
+    result = {}
+    for word, time_start, time_end in word_timings_list:
+        word_count[word] += 1
+        result[(word, word_count[word])] = time_start
 
-word_segments = merge_words(segments)
-for word in word_segments:
-    print(word)
+    return result
 
-for i,word in enumerate(word_segments):
-    display_segment(i)
+def extract_special_timings(data):
+    special_timings = []
+    for key, time in data.items():
+        if key[0] == "-'-'-":  # Check if the key starts with "-'-'-"
+            special_timings.append(time)
+    return special_timings
+
+text = """Tanzania, home to some of the most breathtaking wildlife on earth. Here in the heart of East Africa, 
+    the great Serengeti National Park hosts one of nature's greatest spectacles, the Great Migration. 
+    Over a million wildebeest, zebras, and gazelles travel vast distances in search of fresh grass, braving rivers filled with crocodiles. But predators are never far behind. 
+    Lions, the kings of the savannah, stalk their prey with patience and precision. 
+    Cheetahs, the fastest land animals, chase down their targets in a thrilling display of speed. 
+    In the lush Terengair National Park, giant elephants roam freely. These intelligent creatures form strong family bonds, protecting their young from threats. 
+    And in the ancient Ngorongoro crater, the endangered black rhino finds refuge, a rare sight in the wild. 
+    Tanzania's wildlife is a treasure like no other, a delicate balance of nature that reminds us of the beauty and power of the wild."""
+
+timings = word_timings(text, "output_audio.wav")
+sentence_timings = extract_special_timings(timings)
+
+print(sentence_timings)
