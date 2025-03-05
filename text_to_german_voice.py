@@ -123,6 +123,7 @@ for i, sentence in tqdm(enumerate(sentences), total=len(sentences), desc="Genera
 
 sentence_times = [4.0411875, 12.3438125, 21.8066875, 24.6275625, 29.689125, 35.370875, 39.9323125, 44.7538125, 51.7159375, 59.8184375]
 
-combine_wavs_from_directory('german_sentences', 'german_voice.wav')
+#combine_wavs_from_directory('german_sentences', 'german_voice.wav')
 
-#combine_wavs_given_time('german_sentences', 'warped_german_voice.wav', sentence_times)
+B
+combine_wavs_given_time('german_sentences', 'warped_german_voice.wav', sentence_times)
